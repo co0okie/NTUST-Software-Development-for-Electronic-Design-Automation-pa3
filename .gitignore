@@ -1,5 +1,5 @@
 *.out
-picRouter
+picRouting
 *.o
 lab*
 .vscode
