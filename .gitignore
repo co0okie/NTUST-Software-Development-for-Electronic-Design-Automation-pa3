@@ -1,0 +1,5 @@
+*.out
+picRouter
+*.o
+lab*
+.vscode
