@@ -2,6 +2,8 @@
 #include "routing.h"
 #include <iostream>
 #include <fstream>
+#include <random>
+#include <iomanip>
 
 void printCircuit(const Circuit& circuit) {
     std::cout << "grid " << circuit.gridX << " " << circuit.gridY << std::endl;
@@ -15,12 +17,6 @@ void printCircuit(const Circuit& circuit) {
 }
 
 void writeGP(const std::vector<Net>& netList, const std::string& filename, unsigned int girdX, unsigned int gridY) {
-    // Predefined color palette (will cycle if more nets than colors)
-    const std::vector<std::string> colors = {
-        "red", "green", "blue", "orange", "purple",
-        "cyan", "magenta", "yellow", "black", "gray"
-    };
-
     std::ofstream gp(filename);
     if (!gp) {
         throw std::runtime_error("Cannot open file " + filename + ".gp for writing");
@@ -39,13 +35,18 @@ void writeGP(const std::vector<Net>& netList, const std::string& filename, unsig
     gp << "set grid xtics ytics\n";
     gp << "set xrange [-1:" << girdX << "]\n";
     gp << "set yrange [-1:" << gridY << "]\n";
+    gp << "set palette model HSV\n\n";
+
+    std::mt19937 gen(std::random_device{}());
+    std::uniform_real_distribution<> hueDist(0.0, 1.0);
+    std::uniform_real_distribution<> satDist(0.6, 1.0);
+    std::uniform_real_distribution<> valDist(0.6, 1.0);
 
     // Begin plot command
     gp << "plot ";
     size_t idx = 0;
     for (auto it = netList.begin(); it != netList.end(); ++it, ++idx) {
-        const std::string& color = colors[idx % colors.size()];
-        gp << "'-' with lines lt rgb '" << color << "' lw 2";
+        gp << "'-' with lines lt rgb hsv2rgb(" << hueDist(gen) << "," << satDist(gen) << "," << valDist(gen) << ") lw 2";
         if (std::next(it) != netList.end()) {
             gp << ", \\\n     ";
         } else {
