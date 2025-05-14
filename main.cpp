@@ -37,8 +37,8 @@ void writeGP(const std::vector<Net>& netList, const std::string& filename, unsig
     gp << "set xtics 1\n";
     gp << "set ytics 1\n";
     gp << "set grid xtics ytics\n";
-    gp << "set xrange [-1:" << girdX + 1 << "]\n";
-    gp << "set yrange [-1:" << gridY + 1 << "]\n";
+    gp << "set xrange [-1:" << girdX << "]\n";
+    gp << "set yrange [-1:" << gridY << "]\n";
 
     // Begin plot command
     gp << "plot ";

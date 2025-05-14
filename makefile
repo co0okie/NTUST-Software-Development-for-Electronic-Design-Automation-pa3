@@ -1,15 +1,22 @@
 CC = g++
-SOURCES = $(filter-out lab.cpp, $(wildcard *.cpp))
+SOURCES = $(filter-out lab.cpp testGenerator.cpp, $(wildcard *.cpp))
 OBJECTS = $(SOURCES:.cpp=.o)
 EXECUTABLE = picRouting
 # TEST = test/pic5x5.in
-TEST = test/pic20x20.in
+# TEST = test/pic20x20.in
 # TEST = test/pic60x60.in
+TEST = test/pic100x100.in
 TEST_OUT = $(TEST:.in=.out)
 
-.PHONY: lab clean png run all check
+.PHONY: lab clean png run all check generate_test
 
 all: $(EXECUTABLE)
+
+generate_test: testGenerator
+	./testGenerator
+
+testGenerator: testGenerator.cpp
+	g++ -std=c++11 -O3 testGenerator.cpp -o testGenerator;
 
 check: $(TEST_OUT)
 	test/pic_routing_verification $(TEST) $(TEST_OUT)

@@ -28,7 +28,11 @@ struct NetLoss {
 int upDownLeftRight[4][2] = {{0, 1}, {0, -1}, {1, 0}, {-1, 0}};
 
 void printGrid(const std::vector<std::vector<unsigned int>>& grid) {
+    std::cout << "  ";
+    for (size_t i = 0; i < grid.size(); i++) std::cout << i % 10 << " ";
+    std::cout << "\n";
     for (size_t i = 0; i < grid[0].size(); i++) {
+        std::cout << i % 10 << " ";
         for (size_t j = 0; j < grid.size(); j++) {
             std::cout << grid[j][i] << " ";
         }
@@ -43,11 +47,32 @@ unsigned int estimate(
     const unsigned int x2, const unsigned int y2, 
     const unsigned int propagationLoss, const unsigned int bendingLoss
 ) {
+    if (x1 == x2 && y1 == y2) return 0;
     const unsigned int dx = x1 > x2 ? x1 - x2 : x2 - x1;
     const unsigned int dy = y1 > y2 ? y1 - y2 : y2 - y1;
     unsigned int loss = propagationLoss * (dx + dy);
-    if (x1 != x2 && y1 != y2) loss += bendingLoss;
-    if (prev && ((x1 == x2 && prev->x != x2) || (y1 == y2 && prev->y != y2))) loss += bendingLoss;
+    if (prev) {
+        if ((prev->x == x1 && x1 != x2) || (prev->y == y1 && y1 != y2)) {
+            if (DEBUG > 3) std::cout << "(bend 1st) ";
+            loss += bendingLoss;
+        }
+        if (
+            (x1 > prev->x && x1 > x2) || (x1 < prev->x && x1 < x2) || 
+            (y1 > prev->y && y1 > y2) || (y1 < prev->y && y1 < y2)
+        ) {
+            if (DEBUG > 3) std::cout << "(bend 2nd) ";
+            loss += bendingLoss;
+        }
+        if (
+            (y1 == y2 && ((x1 > prev->x && prev->x > x2) || (x1 < prev->x && prev->x < x2))) ||
+            (x1 == x2 && ((y1 > prev->y && prev->y > y2) || (y1 < prev->y && prev->y < y2)))
+        ) {
+            if (DEBUG > 3) std::cout << "(bend 3rd) ";
+            loss += 2 * bendingLoss + 2 * propagationLoss;
+        }
+    } else if (x1 != x2 && y1 != y2) {
+        loss += bendingLoss;
+    }
     return loss;
 }
 
@@ -63,18 +88,18 @@ NetLoss routeNet(
         if (sa != sb) return sa < sb;
         return a.estimate <= b.estimate;
     };
-    std::set<Node, decltype(cmp1)> orderedNodes{cmp1};
+    std::multiset<Node, decltype(cmp1)> orderedNodes{cmp1};
     auto cmp2 = [](decltype(orderedNodes.begin()) a, decltype(orderedNodes.begin()) b) -> bool {
         return a->x != b->x ? a->x < b->x : a->y < b->y;
     };
     std::set<decltype(orderedNodes.begin()), decltype(cmp2)> nodes{cmp2};
 
-    auto result = orderedNodes.insert({
+    auto itFirstNode = orderedNodes.insert({
         net.x1, net.y1, grid[net.x1][net.y1] * crossingLoss, estimate(
             nullptr, net.x1, net.y1, net.x2, net.y2, propagationLoss, bendingLoss
         )
     });
-    nodes.insert(result.first);
+    nodes.insert(itFirstNode);
 
     for (;;) { // until target is found
         auto tmpBestNode = *orderedNodes.begin();
@@ -106,7 +131,11 @@ NetLoss routeNet(
         if (bestNode->x == net.x2 && bestNode->y == net.y2) { // target found
             Net n;
             n.id = net.id;
+            if (DEBUG > 1) std::cout << "  target found" << std::endl;
             for (const Node* nd = &*bestNode; nd; nd = nd->prev) {
+                if (DEBUG > 2) std::cout << "    (" << nd->x << ", " << nd->y << "): " 
+                    << nd->cost << " + " << nd->estimate << " = " 
+                    << (nd->cost + nd->estimate) << ", " << (nd->lock ? "locked" : "free") << std::endl;
                 n.points.push_front({nd->x, nd->y});
             }
             return {n, bestNode->cost};
@@ -115,6 +144,7 @@ NetLoss routeNet(
         for (int i = 0; i < 4; i++) {
             unsigned int x = bestNode->x + upDownLeftRight[i][0];
             unsigned int y = bestNode->y + upDownLeftRight[i][1];
+
             if (DEBUG > 2) std::cout << "    explore (" << x << ", " << y << "): ";
             if (x >= grid.size() || y >= grid[0].size()) {
                 if (DEBUG > 2) std::cout << "out of bound" << std::endl;
@@ -130,59 +160,60 @@ NetLoss routeNet(
             if (bend) loss += bendingLoss;
             loss += grid[x][y] * crossingLoss;
             Node newNode {
-                x, y, loss, estimate(bestNode->prev, net.x1, net.y1, net.x2, net.y2, propagationLoss, bendingLoss),
+                x, y, loss, estimate(&*bestNode, x, y, net.x2, net.y2, propagationLoss, bendingLoss),
                 false, &*bestNode
             };
-            if (DEBUG > 2) std::cout << "cost: " << newNode.cost << " + " << newNode.estimate << " = " 
+            if (DEBUG > 2) std::cout << "loss: " << newNode.cost << " + " << newNode.estimate << " = " 
                 << (newNode.cost + newNode.estimate) << ", ";
 
-            auto sortResult = orderedNodes.insert(newNode);
-            if (!sortResult.second) {
-                std::cerr << "sortResult.second == false, this should be impossible." << std::endl;
-                exit(1);
-            }
-            auto idResult = nodes.insert(sortResult.first);
+            auto itNewNode = orderedNodes.insert(newNode);
+            auto idResult = nodes.insert(itNewNode);
+            // **idResult.first == (idResult.second ? newNode : oldNode)
             if (idResult.second) { // new node discover
                 if (DEBUG > 2) std::cout << "new node" << std::endl;
                 continue;
             }
-            if (DEBUG > 2) std::cout << "identical to node (" << sortResult.first->x << ", " << sortResult.first->y 
-                << "): " << sortResult.first->cost << " + " << sortResult.first->estimate << " = " 
-                << (sortResult.first->cost + sortResult.first->estimate) << ", ";
-            if (sortResult.first->lock) { // already explored and locked
-                orderedNodes.erase(sortResult.first);
-                if (DEBUG > 2) std::cout << "already explored and locked" << std::endl;
-                continue; 
-            }
+            auto& itItOldNode = idResult.first;
+            if (DEBUG > 2) std::cout << "exist (" << (*itItOldNode)->x << ", " << (*itItOldNode)->y 
+                << "): " << (*itItOldNode)->cost << " + " << (*itItOldNode)->estimate << " = " 
+                << ((*itItOldNode)->cost + (*itItOldNode)->estimate) << ", ";
             // explored but not locked, compare and replace with min one
-            if (newNode.cost >= sortResult.first->cost) { // not a better solution
-                orderedNodes.erase(sortResult.first);
-                if (DEBUG > 2) std::cout << "not a better solution" << std::endl;
-                continue; 
+            if (newNode.cost + newNode.estimate < (*itItOldNode)->cost + (*itItOldNode)->estimate) {
+                // already explored, not locked, is a better solution
+                
+                orderedNodes.erase(*itItOldNode);
+
+                auto itItNextNode = nodes.erase(itItOldNode);
+                nodes.insert(itItNextNode, itNewNode);
+                if (DEBUG > 2) std::cout << "replaced" << std::endl;
+                continue;
             }
-            // already explored, not locked, is a better solution
-            orderedNodes.erase(*idResult.first);
-            auto itItNextNode = nodes.erase(idResult.first);
-            nodes.insert(itItNextNode, sortResult.first);
-            if (DEBUG > 2) std::cout << "replaced" << std::endl;
+            // not a better solution
+            orderedNodes.erase(itNewNode);
+            if (DEBUG > 2) std::cout << "worse" << std::endl;
         }
     }
 }
 
 unsigned int loss(const Net& net, const std::vector<std::vector<unsigned int>>& grid, const Circuit& circuit) {
-    unsigned int loss = circuit.propagationLoss * (net.points.size() - 1);
-    // if (net.id == 26) std::cout << "net " << net.id << ": propagationLoss = " << circuit.propagationLoss << " * " << net.points.size() - 1 << " = " << loss << std::endl;
+    unsigned int loss = 0;
+    // unsigned int loss = circuit.propagationLoss * (net.points.size() - 1);
     for (size_t i = 0; i < net.points.size(); i++) {
         Point p3 = net.points[i];
-        // if (net.id == 26) std::cout << "(" << p3.x << ", " << p3.y << "): \n";
-        // if (net.id == 26) std::cout << "loss + crossingLoss * (" << grid[p3.x][p3.y] << " - 1) = ";
         loss += circuit.crossingLoss * (grid[p3.x][p3.y] - 1);
-        // if (net.id == 26) std::cout << loss << std::endl;
-        if (i < 2) continue;
+        if (i < 1) {
+            if (DEBUG > 2) std::cout << "  (" << p3.x << ", " << p3.y << "): " << loss << std::endl;
+            continue;
+        }
+        loss += circuit.propagationLoss;
+        if (i < 2) {
+            if (DEBUG > 2) std::cout << "  (" << p3.x << ", " << p3.y << "): " << loss << std::endl;
+            continue;
+        }
         Point p1 = net.points[i - 2];
         bool bend = p1.x != p3.x && p1.y != p3.y;
         if (bend) loss += circuit.bendingLoss;
-        // if (net.id == 26) if (bend) std::cout << "loss + bendingLoss = " << loss << std::endl;
+        if (DEBUG > 2) std::cout << "  (" << p3.x << ", " << p3.y << "): " << loss << std::endl;
     }
     return loss;
 }
@@ -253,16 +284,9 @@ std::vector<Net> route(const Circuit& circuit) {
                 net = std::move(newNl.net);
                 proceed = true;
                 if (DEBUG) std::cout << "replace with better route" << std::endl;
-            } else if (newNl.loss == oldLoss) { // same
-                for (const auto& p : ps) grid[p.x][p.y]++;
-            } else {
-                std::cerr << "new loss > old loss, this should be impossible." << std::endl;
-                DEBUG = 5;
-                routeNet(grid, n, circuit.propagationLoss, circuit.crossingLoss, circuit.bendingLoss);
-                DEBUG = 1;
+            } else { // same
                 for (const auto& p : ps) grid[p.x][p.y]++;
             }
-            // printGrid(grid);
         }
     }
 
