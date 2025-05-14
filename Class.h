@@ -2,17 +2,31 @@
 #define CLASS_H
 
 #include <vector>
+#include <list>
+#include <deque>
 
-struct Net {
-    unsigned int x1;
-    unsigned int y1;
-    unsigned int x2;
-    unsigned int y2;
+struct Point {
+    unsigned int x;
+    unsigned int y;
 };
 
+struct Net {
+    unsigned int id;
+    std::deque<Point> points;
+};
+
+
 struct Circuit {
-    unsigned int girdX;
-    unsigned int girdY;
+    struct Net {
+        unsigned int id;
+        unsigned int x1;
+        unsigned int y1;
+        unsigned int x2;
+        unsigned int y2;
+    };
+
+    unsigned int gridX;
+    unsigned int gridY;
     unsigned int propagationLoss;
     unsigned int crossingLoss;
     unsigned int bendingLoss;

@@ -1,14 +1,25 @@
 CC = g++
-SOURCES = main.cpp parser.cpp
+SOURCES = $(filter-out lab.cpp, $(wildcard *.cpp))
 OBJECTS = $(SOURCES:.cpp=.o)
 EXECUTABLE = picRouting
-TEST = test/pic60x60.in
+# TEST = test/pic5x5.in
+TEST = test/pic20x20.in
+# TEST = test/pic60x60.in
+TEST_OUT = $(TEST:.in=.out)
 
-.PHONY: lab clean
+.PHONY: lab clean png run all check
 
 all: $(EXECUTABLE)
 
-run: $(EXECUTABLE)
+check: $(TEST_OUT)
+	test/pic_routing_verification $(TEST) $(TEST_OUT)
+
+png: output.gp.png
+
+output.gp.png: output.gp
+	gnuplot output.gp
+
+run output.gp $(TEST_OUT): $(EXECUTABLE) $(TEST) makefile
 	./$(EXECUTABLE) $(TEST) $(TEST:.in=.out)
 
 $(EXECUTABLE): $(OBJECTS)

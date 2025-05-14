@@ -3,3 +3,5 @@ picRouting
 *.o
 lab*
 .vscode
+*.png
+*.gp

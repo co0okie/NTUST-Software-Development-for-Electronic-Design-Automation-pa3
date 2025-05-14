@@ -28,11 +28,11 @@ Circuit parse(const std::string& fileName) {
             return word;
         }
 
-        std::vector<Net> parseNet() {
-            std::vector<Net> nets{parseUInt()};
+        std::vector<Circuit::Net> parseNet() {
+            std::vector<Circuit::Net> nets{parseUInt()};
 
             for (int i = 0; i < nets.size(); ++i) {
-                parseWord();
+                nets[i].id = parseUInt();
                 nets[i].x1 = parseUInt();
                 nets[i].y1 = parseUInt();
                 nets[i].x2 = parseUInt();
@@ -48,8 +48,8 @@ Circuit parse(const std::string& fileName) {
             std::string token;
             while (s >> token) {
                 if (token == "grid") {
-                    circuit.girdX = parseUInt();
-                    circuit.girdY = parseUInt();
+                    circuit.gridX = parseUInt();
+                    circuit.gridY = parseUInt();
                 }
                 else if (token == "propagation" && parseWord() == "loss") {
                     circuit.propagationLoss = parseUInt();
