@@ -5,7 +5,9 @@ EXECUTABLE = picRouting
 # TEST = test/pic5x5.in
 # TEST = test/pic20x20.in
 # TEST = test/pic60x60.in
-TEST = test/pic100x100.in
+# TEST = test/pic100x100.in
+TEST = test/pic512x512.in
+# TEST = test/pic1024x1024.in
 TEST_OUT = $(TEST:.in=.out)
 
 .PHONY: lab clean png run all check generate_test

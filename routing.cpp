@@ -4,8 +4,8 @@
 #include <iostream>
 #include <algorithm>
 
-// #define DEBUG 1
-int DEBUG = 1;
+#define DEBUG 1
+// int DEBUG = 1;
 
 struct Node {
     unsigned int x, y;
@@ -103,26 +103,12 @@ NetLoss routeNet(
 
     for (;;) { // until target is found
         auto tmpBestNode = *orderedNodes.begin();
-        if (nodes.begin() == nodes.end() || tmpBestNode.lock) {
-            std::cerr << "Run out of free nodes to explore. This should be impossible." << std::endl;
-            exit(1);
-        }
         auto itItTmpBestNode = nodes.find(orderedNodes.begin());
         auto itItNextTmpBestNode = nodes.erase(itItTmpBestNode);
         orderedNodes.erase(orderedNodes.begin());
         tmpBestNode.lock = true;
         auto bestNode = orderedNodes.insert(orderedNodes.end(), tmpBestNode);
         nodes.insert(itItNextTmpBestNode, bestNode);
-        
-        // if (DEBUG > 5) {
-        //     for (const auto& node : orderedNodes) {
-        //         std::cout << "(" << node.x << ", " << node.y << "): " << node.cost << " + " << node.estimate << " = " << (node.cost + node.estimate)
-        //             << (node.lock ? ", locked" : ", free");
-        //         if (node.prev) std::cout << " <- (" << node.prev->x << ", " << node.prev->y << ")";
-        //         std::cout << std::endl;
-        //     }
-        //     std::cout << "\n" << std::endl;
-        // }
 
         if (DEBUG > 1) std::cout << "  lock node (" << bestNode->x << ", " << bestNode->y << "), " 
             << "cost: " << bestNode->cost << " + " << bestNode->estimate << " = " 
@@ -180,9 +166,7 @@ NetLoss routeNet(
             // explored but not locked, compare and replace with min one
             if (newNode.cost + newNode.estimate < (*itItOldNode)->cost + (*itItOldNode)->estimate) {
                 // already explored, not locked, is a better solution
-                
                 orderedNodes.erase(*itItOldNode);
-
                 auto itItNextNode = nodes.erase(itItOldNode);
                 nodes.insert(itItNextNode, itNewNode);
                 if (DEBUG > 2) std::cout << "replaced" << std::endl;
@@ -197,7 +181,6 @@ NetLoss routeNet(
 
 unsigned int loss(const Net& net, const std::vector<std::vector<unsigned int>>& grid, const Circuit& circuit) {
     unsigned int loss = 0;
-    // unsigned int loss = circuit.propagationLoss * (net.points.size() - 1);
     for (size_t i = 0; i < net.points.size(); i++) {
         Point p3 = net.points[i];
         loss += circuit.crossingLoss * (grid[p3.x][p3.y] - 1);
@@ -249,24 +232,9 @@ std::vector<Net> route(const Circuit& circuit) {
             std::cout << std::endl;
         }
     }
-        
-    // printGrid(grid);
-    
-    // struct pNetLoss {
-    //     Net* net;
-    //     unsigned int loss;
-    // };
-    // std::vector<pNetLoss> netLosses;
-    // netLosses.reserve(nets.size());
-    // for (auto& net : nets) netLosses.push_back({&net});
 
     if (DEBUG) std::cout << "\ndetailed routing..." << std::endl;
     for (bool proceed = true; proceed; ) {
-        // for (auto& nl : netLosses) nl.loss = loss(*nl.net, grid, circuit);
-        // std::sort(netLosses.begin(), netLosses.end(), [](const pNetLoss& a, const pNetLoss& b) {
-        //     return a.loss >= b.loss;
-        // });
-
         proceed = false;
         for (auto& net : nets) {
             const auto& ps = net.points;
@@ -277,16 +245,17 @@ std::vector<Net> route(const Circuit& circuit) {
             
             for (const auto& p : ps) grid[p.x][p.y]--;
             auto newNl = routeNet(grid, n, circuit.propagationLoss, circuit.crossingLoss, circuit.bendingLoss);
-            if (DEBUG) std::cout << "new route loss: " << newNl.loss << std::endl;
+            if (DEBUG) std::cout << "new route loss: " << newNl.loss;
             
             if (newNl.loss < oldLoss) { // found a better solution
                 for (const auto& p : newNl.net.points) grid[p.x][p.y]++;
                 net = std::move(newNl.net);
                 proceed = true;
-                if (DEBUG) std::cout << "replace with better route" << std::endl;
+                if (DEBUG) std::cout << ", replace with better route";
             } else { // same
                 for (const auto& p : ps) grid[p.x][p.y]++;
             }
+            if (DEBUG) std::cout << std::endl;
         }
     }
 

@@ -36,7 +36,7 @@ void writeTestFile(unsigned int size,
 }
 
 int main() {
-    writeTestFile(100, 1, 10, 3, 100);
+    writeTestFile(512, 1, 10, 3, 512);
 
     return 0;
 }
