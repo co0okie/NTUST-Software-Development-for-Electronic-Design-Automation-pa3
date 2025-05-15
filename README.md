@@ -1,5 +1,10 @@
 # Detailed Routing for Photonic Integrated Circuits (PICs)
 
+## Prerequisites
+
+- g++
+- gnuplot
+
 ## Usage
 
 1.  Compile to get `picRouting`
