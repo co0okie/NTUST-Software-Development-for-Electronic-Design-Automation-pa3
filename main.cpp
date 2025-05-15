@@ -17,15 +17,16 @@ void printCircuit(const Circuit& circuit) {
 }
 
 void writeGP(const std::vector<Net>& netList, const std::string& filename, unsigned int girdX, unsigned int gridY) {
-    std::ofstream gp(filename);
+    const auto fileNameNoSuffix = filename.substr(0, filename.find_last_of('.'));
+    std::ofstream gp(fileNameNoSuffix + ".gp");
     if (!gp) {
-        throw std::runtime_error("Cannot open file " + filename + ".gp for writing");
+        throw std::runtime_error("Cannot open file " + fileNameNoSuffix + ".gp for writing");
     }
 
     gp << "set terminal pngcairo size " 
         << girdX * 32 + 144 << "," 
         << gridY * 32 + 106 << "\n";
-    gp << "set output '" << filename << ".png'\n";
+    gp << "set output '" << fileNameNoSuffix << ".png'\n";
     gp << "set title 'Net Plot'\n";
     gp << "set xlabel 'X'\n";
     gp << "set ylabel 'Y'\n";
@@ -94,7 +95,7 @@ int main(int argc, char* argv[]) {
 
     writeOutput(netList, argv[2]);
 
-    writeGP(netList, "output.gp", circuit.gridX, circuit.gridY);
+    writeGP(netList, argv[2], circuit.gridX, circuit.gridY);
 
     return 0;
 }

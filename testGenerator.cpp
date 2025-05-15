@@ -1,6 +1,7 @@
 #include <fstream>
 #include <random>
 #include <string>
+#include <iostream>
 
 void writeTestFile(unsigned int size,
                    unsigned int propagationLoss,
@@ -35,8 +36,27 @@ void writeTestFile(unsigned int size,
     }
 }
 
-int main() {
-    writeTestFile(512, 1, 10, 3, 512);
+int main(int argc, char* argv[]) {
+    unsigned int size, propagationLoss, crossingLoss, bendingLoss, numNet;
+
+    if (argc < 2) {
+        std::cout << "Usage: " << argv[0] << " size [propagationLoss] [crossingLoss] [bendingLoss] [numNet]" << std::endl;
+        return 1;
+    }
+    size = std::stoi(argv[1]);
+    if (argc < 3) propagationLoss = 1;
+    else propagationLoss = std::stoi(argv[2]);
+
+    if (argc < 4) crossingLoss = 10;
+    else crossingLoss = std::stoi(argv[3]);
+
+    if (argc < 5) bendingLoss = 3;
+    else bendingLoss = std::stoi(argv[4]);
+
+    if (argc < 6) numNet = size;
+    else numNet = std::stoi(argv[5]);
+
+    writeTestFile(size, propagationLoss, crossingLoss, bendingLoss, numNet);
 
     return 0;
 }
