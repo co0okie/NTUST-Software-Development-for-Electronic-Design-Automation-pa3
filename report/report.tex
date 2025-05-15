@@ -1,0 +1,127 @@
+% \documentclass{ctexart}
+\documentclass{article}
+\usepackage[a4paper, margin=2cm]{geometry}
+\usepackage{listings}
+\usepackage{courier}
+\usepackage{algorithm}
+\usepackage{algpseudocode}
+\usepackage{ctex}
+
+\makeatletter
+\setlength{\@fptop}{0pt}  
+\makeatother
+
+\algnewcommand{\IIf}[1]{\State\algorithmicif\ #1\ \algorithmicthen}
+\algnewcommand{\EndIIf}{\unskip\ \algorithmicend\ \algorithmicif}
+\algnewcommand{\FFor}[1]{\State\algorithmicfor\ #1\ \algorithmicdo}
+\algnewcommand{\EndFFor}{\unskip\ \algorithmicend\ \algorithmicfor}
+\algnewcommand\True{\textbf{true}\space}
+\algnewcommand\False{\textbf{false}\space}
+\algnewcommand\Continue{\textbf{continue}\space}
+
+\lstset{
+    basicstyle=\ttfamily
+}
+
+\setmainfont{Times New Roman}
+\setCJKmainfont{TW-Kai-98_1}
+
+\title{PA3: Detailed Routing for Photonic Integrated Circuits (PICs)}
+\author{
+  李品翰 \\
+  四電機三甲 \\
+  B11107051
+}
+\date{}  
+
+\begin{document}
+
+\maketitle
+
+本次作業使用A*演算法完成，整體pseudocode如下：
+
+\begin{algorithm}
+\caption{Overall Code Structure}
+\textbf{Input:} grid size, propagation loss, crossing loss, bending loss, input nets \\
+\textbf{Output:} route of nets
+\begin{algorithmic}
+
+\State $grid \gets$ 2d integer array with all value set to 0 \Comment{作為地圖}
+\State $nets \gets$ a empty set of net \Comment{儲存已繞好的線}
+
+\For{$input\_net$ in $input\_nets$}
+    \State $net\gets\textrm{L\_Routing}(intput\_net)$ \Comment{無視障礙物，以L繞線作為global routing}
+    \State $nets \gets nets \cup \{net\}$
+    \FFor{$point$ in $net$} grid[$point.x$][$point.y$]++ \EndFFor
+\EndFor
+
+\State $proceed \gets \True$
+\While {$proceed == \True$} \Comment{存在重新繞過的net}
+    \State $proceed \gets \False$
+    \For{$net$ in $nets$}
+        \State $nets \gets nets - \{net\}$ \Comment{移除舊net}
+        \FFor{$point$ in $net$} grid[$point.x$][$point.y$]$--$ \EndFFor \Comment{在地圖上移除舊net}
+        \State $new\_net \gets \textrm{A*\_Routing}(grid, net)$
+        \If{$\textrm{loss}(grid, new\_net) < \textrm{loss}(grid, net)$}
+            \State $nets \gets nets \cup \{new\_net\}$ \Comment{加入新net}
+            \FFor{$point$ in $new\_net$} grid[$point.x$][$point.y$]++ \EndFFor \Comment{在地圖上加入新net}
+            \State $proceed \gets \True$
+        \Else
+            \State $nets \gets nets \cup \{net\}$ \Comment{復原舊net}
+            \FFor{$point$ in $net$} grid[$point.x$][$point.y$]++ \EndFFor \Comment{在地圖上復原舊net}
+        \EndIf
+    \EndFor
+\EndWhile
+
+\end{algorithmic}
+\end{algorithm}
+
+\begin{itemize}
+    \item \texttt{grid}提供各net繞線時，得知某點是否有其他net存在，需要大量隨機存取，因此使用\texttt{std::vector}
+    \item \texttt{nets}在L Routing後大小維持固定，若找到更佳繞線也可直接覆蓋，沒有特殊需求，因此使用最簡單的\texttt{std::vector}
+\end{itemize}
+
+\pagebreak
+
+\begin{algorithm}
+\caption{A* Routing Algorithm}
+\textbf{Input:} grid, input net, propagation loss, crossing loss, bending loss \\
+\textbf{Output:} route of net
+\begin{algorithmic}
+
+\State $points \gets \{\textrm{first\_point}(input\_net)\}$ \Comment{儲存已探索過的點}
+\While{\True}
+    \State $best\_point \gets \textrm{min\_total\_cost}(points)$
+    \State lock($best\_point$)
+    \If {$best\_point$ == $\textrm{last\_point}(input\_net)$} \Comment{找到終點}
+        \State \Return net with points from \textrm{first\_point}($input\_net$) to \textrm{last\_point}($input\_net$) 
+    \EndIf
+    \For {$point$ in up, down, left, right of $best\_point$} \Comment{探索周圍點}
+        \IIf {out\_of\_bound($point$)} \Continue \EndIIf
+        \IIf {$point$ == privious\_point($best\_point$)} \Continue \EndIIf
+        \State cost, estimate\_cost = evaluate\_cost($point, best\_point, grid, \textrm{last\_point}(input\_net)$)
+        
+        \If {$point \in points$}
+            \State $old\_point \gets \textrm{find}(points, point)$
+            \IIf {$\textrm{total\_cost}(point) \geq \textrm{total\_cost}(old\_point)$} \Continue \EndIIf \Comment{非更佳路線}
+            \State $points \gets points - \{old\_point\}$ \Comment{新路徑較佳，刪除舊路徑}
+        \EndIf
+
+        \State $points \gets points \cup \{point\}$
+    \EndFor
+\EndWhile
+
+\end{algorithmic}
+\end{algorithm}
+
+
+\begin{itemize}
+    \item 探索到終點，準備回傳時，因路徑是由終點一路回推找到起點，需使用到\texttt{push\_front}，因此\texttt{net}使用\texttt{std::deque}來儲存路徑上的點
+    \item 為了在盡可能多的地方達成\texttt{O(1)}操作，\texttt{points}被我分成\texttt{id\_points}與\texttt{ordered\_points}兩個set： 
+    \begin{itemize}
+        \item \texttt{id\_points}: 使用\texttt{std::set}，以點座標作為comparator，避免set中出現重複點
+        \item \texttt{ordered\_points}: 使用\texttt{std::multiset}，利用C++ set排序的特性，依序比較lock、total cost、estimate cost，此時只要呼叫\texttt{*ordered\_points.begin()}即可以\texttt{O(1)}時間取得total cost最小的點
+    \end{itemize}
+\end{itemize}
+
+\end{document}

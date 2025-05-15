@@ -5,3 +5,9 @@ lab*
 .vscode
 *.gp
 testGenerator
+
+report/*
+!report/report.tex
+!report/report.pdf
+
+*.tgz

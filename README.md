@@ -9,10 +9,11 @@
 
 1.  Compile to get `picRouting`
     ```bash
-    make all
+    make
     ```
 2.  Select an input file, e.g. `test/pic5x5.in`, or generate one with:
     ```bash
+    make test # compile to get testGenerator
     ./testGenerator <size> [propagationLoss] [crossingLoss] [bendingLoss] [numNet]
     ```
     Output filename will be `test/pic{size}x{size}.in`

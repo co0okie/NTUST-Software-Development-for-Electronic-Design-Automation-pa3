@@ -2,7 +2,6 @@
 #define CLASS_H
 
 #include <vector>
-#include <list>
 #include <deque>
 
 struct Point {
